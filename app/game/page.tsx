@@ -10,8 +10,8 @@ import { deal, type Player } from '@/lib/game';
 export default function GamePage() {
   const router = useRouter();
   const [players, _setPlayers] = useState<Player[]>([
-    { id: '1', handle: 'player 1' },
     { id: '2', handle: 'player 2' },
+    { id: '1', handle: 'player 1' },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -24,14 +24,14 @@ export default function GamePage() {
       const game = deal({ id: gameId, players, cardsPerPerson: 7 });
 
       await db.transact(db.tx.games[gameId].update(game));
-      router.push(`/game/${gameId}?playerId=1`);
+      router.push(`/game/${gameId}?playerId=1&startedGame=true`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container fluid h="100vh">
+    <Container fluid h="100vh" style={{ overflow: 'hidden' }}>
       <Center h="100%">
         <Button
           loading={loading}

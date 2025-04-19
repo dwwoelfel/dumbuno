@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { IconBan, IconRefresh } from '@tabler/icons-react';
+import { useEffect, useRef, useState } from 'react';
+import { IconBan, IconRefresh, IconShare } from '@tabler/icons-react';
 import {
+  ActionIcon,
   Box,
   Button,
   Card,
@@ -18,6 +19,7 @@ import {
   Text,
   useMantineTheme,
 } from '@mantine/core';
+import { useOs } from '@mantine/hooks';
 import db from '@/lib/db';
 import {
   canDrawCard,
@@ -281,6 +283,7 @@ function DumbunoCard({
         color: contentColor,
         position: 'relative',
         overflow: 'hidden',
+        userSelect: 'none',
       }}
     >
       {hide ? null : (
@@ -347,6 +350,7 @@ function PlayerHand({
   hideCards,
   canPlay,
   onAction,
+  isMe,
 }: {
   cards: DumbunoCard[];
   cardWidth?: string | number;
@@ -355,14 +359,48 @@ function PlayerHand({
   hideCards: boolean;
   canPlay: boolean;
   onAction: ActionHandler;
+  isMe: boolean;
 }) {
   const numCards = cards.length;
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [triggerShake, setTriggerShake] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const os = useOs();
+
+  const isMobile = os === 'android' || os === 'ios';
+
+  useEffect(() => {
+    if (!isMe) {
+      return;
+    }
+    const listener = (e: TouchEvent) => {
+      const el = containerRef.current;
+      if (!el) {
+        return;
+      }
+      const touch = e.changedTouches[0];
+      const x = touch.clientX;
+      const y = touch.clientY;
+      const touchedElement = document.elementFromPoint(x, y);
+
+      if (!el.contains(touchedElement)) {
+        setHoveredCard(null);
+        setSelectedCard(null);
+      }
+    };
+    document.addEventListener('touchend', listener);
+    return () => document.removeEventListener('touchend', listener);
+  }, []);
 
   if (numCards === 0) {
     return null;
   }
+
+  const selectedIdx = selectedCard
+    ? cards.findIndex((c) => c.id === selectedCard)
+    : cards.findIndex((c) => c.id === hoveredCard);
 
   const cardHeight = `calc(${typeof cardWidth === 'number' ? rem(cardWidth) : cardWidth} * 1.5)`;
   const angleInRadians = maxSpreadAngle * (Math.PI / 180);
@@ -371,14 +409,30 @@ function PlayerHand({
 
   return (
     <Box
+      ref={containerRef}
       pos="relative"
       style={{
         minHeight: containerMinHeight,
         width: '100%',
       }}
+      onTouchMove={(e) => {
+        const touch = e.touches[0];
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const cardEl = el?.closest('[data-card-id]');
+        if (cardEl) {
+          setHoveredCard(cardEl.getAttribute('data-card-id'));
+        }
+      }}
+      onTouchEnd={() => {
+        setHoveredCard(null);
+        if (selectedCard && selectedCard !== hoveredCard) {
+          setSelectedCard(null);
+        }
+      }}
     >
       {cards.map((card, index) => {
         let rotation = 0;
+
         const rotationForIndex = (i: number): number => {
           const centerIndex = (numCards - 1) / 2;
           const deviationFromCenter = i - centerIndex;
@@ -388,9 +442,9 @@ function PlayerHand({
         };
 
         if (numCards > 1) {
-          if (hoveredIndex !== null && hoveredIndex !== numCards - 1) {
-            const hoveredRotation = rotationForIndex(hoveredIndex);
-            if (index < hoveredIndex) {
+          if (selectedIdx !== -1 && selectedIdx !== numCards - 1) {
+            const hoveredRotation = rotationForIndex(selectedIdx);
+            if (index < selectedIdx) {
               const minRotation = rotationForIndex(0);
               const spreadSize = (hoveredRotation - minRotation) / numCards / 2;
               rotation = minRotation + spreadSize * index;
@@ -400,7 +454,7 @@ function PlayerHand({
               rotation = maxRotation - spreadSize * (numCards - 1 - index);
             }
 
-            if (index === hoveredIndex) {
+            if (index === selectedIdx) {
               rotation = rotationForIndex(index);
               if (rotation > 0) {
                 rotation -= rotation * 0.8;
@@ -414,9 +468,9 @@ function PlayerHand({
         }
 
         const extraTransform =
-          index === hoveredIndex
+          index === selectedIdx
             ? 'scale(1.03)'
-            : hoveredIndex != null
+            : selectedIdx != null
               ? 'scale(0.95)'
               : '';
 
@@ -430,27 +484,44 @@ function PlayerHand({
               bottom={0}
               left="50%"
               w={cardWidth}
+              data-card-id={card.id}
               style={{
                 transform: `translateX(-50%) rotate(${rotation}deg) ${extraTransform}`,
                 transformOrigin: `50% ${originY}`,
                 transition: 'transform 0.2s ease-out',
                 cursor: canPlay ? 'pointer' : 'default',
+                userSelect: 'none',
               }}
-              onPointerEnter={() => (hideCards ? null : setHoveredIndex(index))}
-              onPointerLeave={() =>
-                hideCards
-                  ? null
-                  : setHoveredIndex((current) =>
-                      current === index ? null : current
-                    )
-              }
+              onPointerEnter={() => {
+                if (hideCards) {
+                  return;
+                }
+                setHoveredCard(card.id);
+              }}
+              onPointerLeave={() => {
+                if (hideCards) {
+                  return;
+                }
+                setHoveredCard((current) =>
+                  current === card.id ? null : current
+                );
+              }}
               onClick={() => {
-                if (canPlay) {
+                if (isMe && isMobile) {
+                  const earlyReturn = selectedCard !== card.id;
+                  setSelectedCard(card.id);
+                  if (earlyReturn) {
+                    return;
+                  }
+                }
+
+                if (canPlay || isMe) {
                   setTriggerShake(null);
+
                   const error = onAction({ type: 'play', card });
 
                   if (error) {
-                    setTimeout(() => setTriggerShake(card.id), 10);
+                    setTimeout(() => setTriggerShake(card.id));
                   }
                 }
               }}
@@ -485,7 +556,7 @@ function PlayerActions({
   const action = game.nextActions[0];
 
   if (action?.player.id !== player.id) {
-    return null;
+    return <Text>{friendlyGameStatus(me, action)}</Text>;
   }
 
   switch (action.type) {
@@ -562,29 +633,36 @@ function Players({
                     left: '50%',
                     bottom: '10%',
                     transform: 'translateX(-50%)',
+                    width: '100%',
                   }
                 : {
                     position: 'absolute',
                     left: '50%',
                     top: '10%',
                     transform: 'translateX(-50%) rotate(180deg)',
+                    width: '100%',
                   }
             }
           >
             {/* {isMe ? null : player.handle} */}
-            <PlayerActions
-              game={game}
-              me={me}
-              player={player}
-              singlePlayer={singlePlayer}
-              onAction={onAction}
-            />
+            <Flex align="center" justify="center" ml="1em" mr="1em">
+              <PlayerActions
+                game={game}
+                me={me}
+                player={player}
+                singlePlayer={singlePlayer}
+                onAction={onAction}
+              />
+            </Flex>
             <PlayerHand
               cards={cards}
               hideCards={!singlePlayer && !isMe}
               canPlay={
-                action?.type === 'play' && action.player.id === player.id
+                action?.type === 'play' &&
+                action.player.id === player.id &&
+                (singlePlayer || isMe)
               }
+              isMe={isMe}
               onAction={onAction}
             />
           </div>
@@ -620,20 +698,26 @@ function Game({
   me,
   onUpdateGame,
   singlePlayer,
+  playerStartedGame,
 }: {
   game: Game;
   me: Player;
   onUpdateGame: (game: Game) => void;
   singlePlayer?: boolean;
+  playerStartedGame: boolean;
 }) {
   // XXX: Run a check on the game to ensure we haven't violated invariants
   const [drawCardError, setDrawCardError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string>('');
+  const [urlCopied, setUrlCopied] = useState(false);
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const playerId = game.players.find((p) => p.id !== me.id)?.id;
-    url.searchParams.set('playerId', playerId || '');
-    setShareUrl(url.toString());
+    if (playerStartedGame) {
+      const url = new URL(window.location.href);
+      const playerId = game.players.find((p) => p.id !== me.id)?.id;
+      url.searchParams.delete('startedGame');
+      url.searchParams.set('playerId', playerId || '');
+      setShareUrl(url.toString());
+    }
   }, []);
 
   const baseCard = game.discard[game.discard.length - 1];
@@ -686,16 +770,34 @@ function Game({
 
   return (
     <Box mt="1em">
-      <CopyButton value={shareUrl}>
-        {({ copied, copy }) => (
-          <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-            {copied
-              ? "Copied url. Don't peek!"
-              : 'Copy url to play against someone else'}
-          </Button>
-        )}
-      </CopyButton>
-      <Text>{friendlyGameStatus(me, game.nextActions[0])}</Text>
+      {shareUrl ? (
+        <CopyButton value={shareUrl}>
+          {({ copied, copy }) => {
+            const showFullButton = urlCopied ? copied : true;
+            const Component = showFullButton ? Button : ActionIcon;
+            return (
+              <Component
+                color={copied ? 'teal' : 'blue'}
+                onClick={() => {
+                  setUrlCopied(true);
+                  copy();
+                }}
+              >
+                {!showFullButton ? (
+                  <IconShare
+                    style={{ width: '70%', height: '70%' }}
+                    stroke={1.5}
+                  />
+                ) : copied ? (
+                  "Copied url. Don't peek!"
+                ) : (
+                  'Copy url to play against someone else'
+                )}
+              </Component>
+            );
+          }}
+        </CopyButton>
+      ) : null}
       <Players
         me={me}
         game={game}
@@ -755,10 +857,12 @@ export default function GameWrapper({
   singlePlayer,
   gameId,
   playerId,
+  startedGame,
 }: {
   singlePlayer?: boolean;
   gameId: string;
   playerId?: string;
+  startedGame: boolean;
 }) {
   const { isLoading, error, data } = db.useQuery({
     games: { $: { where: { id: gameId } } },
@@ -794,6 +898,7 @@ export default function GameWrapper({
   return (
     <Game
       game={game}
+      playerStartedGame={startedGame}
       me={game.players.find((p) => p.id === playerId) || game.players[0]}
       onUpdateGame={updateGame}
       singlePlayer={singlePlayer}

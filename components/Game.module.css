@@ -36,6 +36,7 @@
   transform: translateX(0) rotate(var(--rotation, 0deg));
   display: inline-block; /* needed for transform on inline elements */
   transform-origin: center center;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .card-shake {
