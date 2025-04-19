@@ -689,7 +689,9 @@ function Game({
       <CopyButton value={shareUrl}>
         {({ copied, copy }) => (
           <Button color={copied ? 'teal' : 'blue'} onClick={copy}>
-            {copied ? 'Copied url' : 'Copy url to play against someone else'}
+            {copied
+              ? "Copied url. Don't peek!"
+              : 'Copy url to play against someone else'}
           </Button>
         )}
       </CopyButton>
