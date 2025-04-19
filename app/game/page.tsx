@@ -25,7 +25,7 @@ export default function GamePage() {
 
       await db.transact(db.tx.games[gameId].update(game));
       router.push(`/game/${gameId}?playerId=1&startedGame=true`);
-    } finally {
+    } catch (_e) {
       setLoading(false);
     }
   };
