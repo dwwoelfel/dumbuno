@@ -16,7 +16,9 @@
     "jsx": "preserve",
     "incremental": true,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@ui/*": ["./components/*"],
+      "@lib/*": ["./lib/*"]
     },
     "plugins": [{ "name": "next" }]
   },

@@ -1,0 +1,44 @@
+@keyframes card-shake-animation {
+  0% {
+    transform: translateX(0) rotate(var(--rotation, 0deg)) translateX(0);
+  }
+
+  10%,
+  90% {
+    transform: translateX(0) rotate(var(--rotation, 0deg)) translateX(-2px);
+  }
+
+  20%,
+  80% {
+    transform: translateX(0) rotate(var(--rotation, 0deg)) translateX(2px);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translateX(0) rotate(var(--rotation, 0deg)) translateX(-3px);
+  }
+
+  40%,
+  60% {
+    transform: translateX(0) rotate(var(--rotation, 0deg)) translateX(3px);
+  }
+
+  100% {
+    transform: translateX(0) rotate(var(--rotation, 0deg)) translateX(0);
+  }
+}
+
+.card-shakeable {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(0) rotate(var(--rotation, 0deg));
+  display: inline-block; /* needed for transform on inline elements */
+  transform-origin: center center;
+}
+
+.card-shake {
+  animation: card-shake-animation 0.8s ease-in-out;
+  animation-iteration-count: 1;
+}
