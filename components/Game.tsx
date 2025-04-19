@@ -436,8 +436,8 @@ function PlayerHand({
                 transition: 'transform 0.2s ease-out',
                 cursor: canPlay ? 'pointer' : 'default',
               }}
-              onMouseEnter={() => (hideCards ? null : setHoveredIndex(index))}
-              onMouseLeave={() =>
+              onPointerEnter={() => (hideCards ? null : setHoveredIndex(index))}
+              onPointerLeave={() =>
                 hideCards
                   ? null
                   : setHoveredIndex((current) =>
