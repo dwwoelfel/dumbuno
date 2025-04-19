@@ -871,7 +871,7 @@ export default function GameWrapper({
   if (isLoading) {
     return (
       <Center h="100%">
-        <Loader />
+        <Loader key="loader" />
       </Center>
     );
   }

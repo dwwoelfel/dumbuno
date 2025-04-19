@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { id } from '@instantdb/react';
-import { Button, Center, Container } from '@mantine/core';
+import { Button, Center, Container, Loader } from '@mantine/core';
 import db from '@/lib/db';
 import { deal, type Player } from '@/lib/game';
 
@@ -33,14 +33,18 @@ export default function GamePage() {
   return (
     <Container fluid h="100vh" style={{ overflow: 'hidden' }}>
       <Center h="100%">
-        <Button
-          loading={loading}
-          onClick={() => {
-            startGame();
-          }}
-        >
-          Start game
-        </Button>
+        {loading ? (
+          <Loader key="loader" />
+        ) : (
+          <Button
+            loading={loading}
+            onClick={() => {
+              startGame();
+            }}
+          >
+            Start game
+          </Button>
+        )}
       </Center>
     </Container>
   );
