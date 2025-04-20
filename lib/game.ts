@@ -450,6 +450,16 @@ export function drawCard(game: Game, player: Player): Game {
     }
   }
 
+  let discard = game.discard;
+  // Move the discard to the draw pile if we're about to run out
+  if (drawPile.length < 2) {
+    const baseCard = game.discard[game.discard.length - 1];
+    if (baseCard) {
+      discard = [baseCard];
+      drawPile.push(...shuffle(game.discard.slice(0, game.discard.length - 1)));
+    }
+  }
+
   return {
     ...game,
     activePlayerIdx:
@@ -461,6 +471,7 @@ export function drawCard(game: Game, player: Player): Game {
           )
         : game.activePlayerIdx,
     drawPile,
+    discard,
     playerHands,
     nextActions,
   };

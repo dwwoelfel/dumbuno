@@ -341,6 +341,59 @@ type ActionHandler = (
     | { type: 'draw-card' }
 ) => string | undefined;
 
+function calculateRotations(
+  maxSpreadAngle: number,
+  cards: any[],
+  selectedIdx: number
+): number[] {
+  const numCards = cards.length;
+  const rotationForIndex = (i: number, hovered: boolean = false): number => {
+    const centerIndex = (numCards - 1) / 2;
+    const deviationFromCenter = i - centerIndex;
+    return centerIndex === 0
+      ? 0
+      : (deviationFromCenter / centerIndex) *
+          maxSpreadAngle *
+          (hovered ? 1.4 : 1);
+  };
+  if (selectedIdx === -1 || selectedIdx === numCards - 1) {
+    return cards.map((_, i) => rotationForIndex(i, selectedIdx !== -1));
+  }
+
+  if (selectedIdx === numCards - 1) {
+    return cards.map((_, i) => rotationForIndex(i, true));
+  }
+  const max = rotationForIndex(numCards - 1, true);
+  const min = rotationForIndex(0, true);
+
+  const minSep = 28;
+  const minSquish = Math.min(12, 2 * (numCards - selectedIdx));
+  let selectedRotation = rotationForIndex(selectedIdx, true);
+
+  if (selectedRotation + minSep + minSquish > max) {
+    selectedRotation -= selectedRotation + minSep + minSquish - max;
+  }
+
+  const rotations = [];
+  rotations[selectedIdx] = selectedRotation;
+  const stepBelow =
+    selectedIdx > 0 ? (selectedRotation - min) / selectedIdx : 0;
+  const stepAbove =
+    selectedIdx < numCards - 1
+      ? (max - (selectedRotation + minSep)) / (numCards - 1 - selectedIdx)
+      : 0;
+
+  for (let i = 0; i < numCards; i++) {
+    if (i < selectedIdx) {
+      rotations[i] = min + stepBelow * i;
+    }
+    if (i > selectedIdx) {
+      rotations[i] = max - stepAbove * (numCards - 1 - i);
+    }
+  }
+  return rotations;
+}
+
 // XXX: Need to put them in multiple groups if we get too many in a hand
 function PlayerHand({
   cards,
@@ -407,6 +460,8 @@ function PlayerHand({
   const estimatedLift = `calc(${typeof cardWidth === 'number' ? rem(cardWidth) : cardWidth} * ${Math.sin(angleInRadians).toFixed(3)})`;
   const containerMinHeight = `calc(${cardHeight} + ${estimatedLift} + ${rem(20)})`;
 
+  const rotations = calculateRotations(maxSpreadAngle, cards, selectedIdx);
+
   return (
     <Box
       ref={containerRef}
@@ -431,41 +486,7 @@ function PlayerHand({
       }}
     >
       {cards.map((card, index) => {
-        let rotation = 0;
-
-        const rotationForIndex = (i: number): number => {
-          const centerIndex = (numCards - 1) / 2;
-          const deviationFromCenter = i - centerIndex;
-          return centerIndex === 0
-            ? 0
-            : (deviationFromCenter / centerIndex) * maxSpreadAngle;
-        };
-
-        if (numCards > 1) {
-          if (selectedIdx !== -1 && selectedIdx !== numCards - 1) {
-            const hoveredRotation = rotationForIndex(selectedIdx);
-            if (index < selectedIdx) {
-              const minRotation = rotationForIndex(0);
-              const spreadSize = (hoveredRotation - minRotation) / numCards / 2;
-              rotation = minRotation + spreadSize * index;
-            } else {
-              const maxRotation = rotationForIndex(numCards - 1);
-              const spreadSize = (maxRotation - hoveredRotation) / numCards / 2;
-              rotation = maxRotation - spreadSize * (numCards - 1 - index);
-            }
-
-            if (index === selectedIdx) {
-              rotation = rotationForIndex(index);
-              if (rotation > 0) {
-                rotation -= rotation * 0.8;
-              }
-            } else {
-              rotation *= 1.4;
-            }
-          } else {
-            rotation = rotationForIndex(index);
-          }
-        }
+        const rotation = rotations[index];
 
         const extraTransform =
           index === selectedIdx
@@ -806,48 +827,74 @@ function Game({
       />
       <Flex
         gap="sm"
+        align="center"
+        justify="center"
         style={{
           position: 'absolute',
           top: '50%',
           left: '50%',
           transform: 'translateX(-50%) translateY(-50%)',
+          width: '100%',
         }}
       >
-        <Box style={{ position: 'relative' }}>
+        <Flex gap="sm" style={{ position: 'relative' }}>
           <Box style={{ position: 'relative' }}>
             <Box style={{ visibility: 'hidden' }}>
               <DumbunoCard card={baseCard} />
             </Box>
-            {game.drawPile.slice(0, 5).map((card, i) => {
-              return (
-                <Box
-                  key={card.id}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0 + i * 2,
-                    cursor: 'pointer',
-                  }}
-                  className={`${classes['card-shakeable']} ${drawCardError && i === 4 ? classes['card-shake'] : ''}`}
-                  onClick={() => {
-                    if (i !== 4) {
-                      return;
-                    }
-                    setDrawCardError(null);
-                    const error = handleDrawCard();
-                    if (error) {
-                      setTimeout(() => setDrawCardError(error), 10);
-                    }
-                  }}
-                >
-                  <DumbunoCard card={card} hide />
-                </Box>
-              );
-            })}
+            {game.drawPile
+              .slice(0, 5)
+              .map((card, i) => {
+                return (
+                  <Box
+                    key={card.id}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 4 - i * 2,
+                      cursor: 'pointer',
+                    }}
+                    className={`${classes['card-shakeable']} ${drawCardError && i === 0 ? classes['card-shake'] : ''}`}
+                    onClick={() => {
+                      if (i !== 0) {
+                        return;
+                      }
+                      setDrawCardError(null);
+                      const error = handleDrawCard();
+                      if (error) {
+                        setTimeout(() => setDrawCardError(error), 10);
+                      }
+                    }}
+                  >
+                    <DumbunoCard card={card} hide />
+                  </Box>
+                );
+              })
+              .reverse()}
           </Box>
-        </Box>
-
-        <DumbunoCard card={baseCard} currentColor={game.currentColor} />
+          <Box style={{ position: 'relative' }}>
+            <Box style={{ visibility: 'hidden' }}>
+              <DumbunoCard card={baseCard} />
+            </Box>
+            {game.discard
+              .slice(Math.max(0, game.discard.length - 5))
+              .map((card, i) => {
+                return (
+                  <Box
+                    key={card.id}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: i * 5,
+                    }}
+                  >
+                    {/* TODO: Keep track of discard colors */}
+                    <DumbunoCard card={card} currentColor={game.currentColor} />
+                  </Box>
+                );
+              })}
+          </Box>
+        </Flex>
       </Flex>
     </Box>
   );
