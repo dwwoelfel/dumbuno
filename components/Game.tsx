@@ -595,6 +595,9 @@ function PlayerActions({
     case 'finished': {
       return <Text>You win!</Text>;
     }
+    case 'got-one': {
+      return <Text>You picked up a card you can play!</Text>;
+    }
     case 'choose-color': {
       return (
         <Box>
@@ -679,7 +682,7 @@ function Players({
               cards={cards}
               hideCards={!singlePlayer && !isMe}
               canPlay={
-                action?.type === 'play' &&
+                (action?.type === 'play' || action?.type === 'got-one') &&
                 action.player.id === player.id &&
                 (singlePlayer || isMe)
               }
@@ -708,7 +711,8 @@ function friendlyGameStatus(me: Player, action: NextAction): string {
     case 'finished': {
       return `The winner is ${handle}!`;
     }
-    case 'play': {
+    case 'play':
+    case 'got-one': {
       return `Waiting for ${handle} to play.`;
     }
   }
@@ -748,7 +752,7 @@ function Game({
     if (!singlePlayer && activePlayer.id !== me.id) {
       return 'Player is not active';
     }
-    if (action.type !== 'play') {
+    if (action.type !== 'play' && action.type !== 'got-one') {
       return 'Not time to play a card.';
     }
     if (canPlayCard({ card, baseCard, currentColor: game.currentColor })) {

@@ -20,6 +20,7 @@ export type NextAction =
   | { type: 'draw-four'; player: Player; cardsLeft: number }
   | { type: 'draw-two'; player: Player; cardsLeft: number }
   | { type: 'play'; player: Player }
+  | { type: 'got-one'; player: Player }
   | { type: 'finished'; player: Player };
 
 export type Game = {
@@ -218,6 +219,7 @@ export function canDrawCard({
     return false;
   }
   switch (action.type) {
+    case 'got-one':
     case 'choose-color':
     case 'finished': {
       return false;
@@ -412,6 +414,11 @@ export function drawCard(game: Game, player: Player): Game {
     [player.id]: [...game.playerHands[player.id], card],
   };
 
+  const baseCard = game.discard[game.discard.length - 1];
+  const canPlay =
+    action.type === 'play' &&
+    canPlayCard({ card, baseCard, currentColor: game.currentColor });
+
   switch (action.type) {
     case 'draw-four':
     case 'draw-two': {
@@ -431,17 +438,24 @@ export function drawCard(game: Game, player: Player): Game {
       break;
     }
     case 'play': {
-      nextActions.push({
-        type: 'play',
-        player:
-          game.players[
-            incrementPlay(
-              game.activePlayerIdx,
-              game.reverseDirection ? -1 : 1,
-              game.players.length
-            )
-          ],
-      });
+      if (canPlay) {
+        nextActions.push({
+          type: 'got-one',
+          player: action.player,
+        });
+      } else {
+        nextActions.push({
+          type: 'play',
+          player:
+            game.players[
+              incrementPlay(
+                game.activePlayerIdx,
+                game.reverseDirection ? -1 : 1,
+                game.players.length
+              )
+            ],
+        });
+      }
       break;
     }
     case 'choose-color':
@@ -453,7 +467,6 @@ export function drawCard(game: Game, player: Player): Game {
   let discard = game.discard;
   // Move the discard to the draw pile if we're about to run out
   if (drawPile.length < 2) {
-    const baseCard = game.discard[game.discard.length - 1];
     if (baseCard) {
       discard = [baseCard];
       drawPile.push(...shuffle(game.discard.slice(0, game.discard.length - 1)));
@@ -463,7 +476,7 @@ export function drawCard(game: Game, player: Player): Game {
   return {
     ...game,
     activePlayerIdx:
-      action.type === 'play'
+      action.type === 'play' && !canPlay
         ? incrementPlay(
             game.activePlayerIdx,
             game.reverseDirection ? -1 : 1,
