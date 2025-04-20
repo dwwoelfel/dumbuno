@@ -743,9 +743,13 @@ function Game({
 
   const baseCard = game.discard[game.discard.length - 1];
   const handlePlayCard = (card: DumbunoCard) => {
-    const activePlayer = game.players[game.activePlayerIdx];
+    const action = game.nextActions[0];
+    const activePlayer = action.player;
     if (!singlePlayer && activePlayer.id !== me.id) {
       return 'Player is not active';
+    }
+    if (action.type !== 'play') {
+      return 'Not time to play a card.';
     }
     if (canPlayCard({ card, baseCard, currentColor: game.currentColor })) {
       onUpdateGame(playCard(game, card));
