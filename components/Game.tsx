@@ -347,14 +347,15 @@ function calculateRotations(
   selectedIdx: number
 ): number[] {
   const numCards = cards.length;
+  const baseSpreadAngle = Math.min(maxSpreadAngle, numCards * 8);
   const rotationForIndex = (i: number, hovered: boolean = false): number => {
     const centerIndex = (numCards - 1) / 2;
     const deviationFromCenter = i - centerIndex;
     return centerIndex === 0
       ? 0
       : (deviationFromCenter / centerIndex) *
-          maxSpreadAngle *
-          (hovered ? 1.4 : 1);
+          baseSpreadAngle *
+          (hovered && baseSpreadAngle === maxSpreadAngle ? 1.4 : 1);
   };
   if (selectedIdx === -1 || selectedIdx === numCards - 1) {
     return cards.map((_, i) => rotationForIndex(i, selectedIdx !== -1));
